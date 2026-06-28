@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voting App</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 60px auto; padding: 0 20px; background: #f5f5f5; }
+    h1   { font-size: 24px; margin-bottom: 24px; }
+    .options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+    button {
+      padding: 12px 20px; font-size: 15px; border: none; border-radius: 6px;
+      cursor: pointer; background: #4f46e5; color: #fff; font-weight: 600;
+    }
+    button:hover { background: #4338ca; }
+    button.reset { background: #dc2626; margin-top: 16px; }
+    button.reset:hover { background: #b91c1c; }
+    .results { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .results h2 { font-size: 16px; margin-bottom: 16px; color: #444; }
+    .bar-row  { margin-bottom: 12px; }
+    .bar-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .bar-track { background: #e5e7eb; border-radius: 4px; height: 24px; overflow: hidden; }
+    .bar-fill  { background: #4f46e5; height: 100%; border-radius: 4px; transition: width 0.4s; display: flex; align-items: center; padding-left: 8px; color: #fff; font-size: 12px; font-weight: 700; min-width: 32px; }
+    .msg { margin-top: 12px; font-size: 13px; color: #16a34a; }
+  </style>
+</head>
+<body>
+  <h1>🗳 Vote</h1>
+
+  <div class="options">
+    <button onclick="vote('Cats')">🐱 Cats</button>
+    <button onclick="vote('Dogs')">🐶 Dogs</button>
+    <button onclick="vote('Birds')">🐦 Birds</button>
+  </div>
+
+  <div class="results">
+    <h2>Live Results</h2>
+    <div id="results">Loading...</div>
+  </div>
+
+  <button class="reset" onclick="resetVotes()">Reset all votes</button>
+  <div class="msg" id="msg"></div>
+
+  <script>
+    //const API = window.__ENV__?.VOTE_SERVICE_URL || 'http://localhost:3000'; #For running this in local without kubernetes
+    //const API = 'http://vote-service' # For running it when not using client side javascript(refer ..frontend/index.html)
+    const API = "";
+
+    async function loadResults() {
+      try {
+        const r = await fetch(API + '/votes');
+        const data = await r.json();
+        const total = data.reduce((s, d) => s + parseInt(d.count), 0);
+        document.getElementById('results').innerHTML = data.length === 0
+          ? '<p style="color:#888">No votes yet.</p>'
+          : data.map(d => {
+              const pct = total ? Math.round((d.count / total) * 100) : 0;
+              return `
+                <div class="bar-row">
+                  <div class="bar-label">${d.option} — ${d.count} vote${d.count==1?'':'s'} (${pct}%)</div>
+                  <div class="bar-track"><div class="bar-fill" style="width:${pct}%">${pct}%</div></div>
+                </div>`;
+            }).join('');
+      } catch (e) {
+        document.getElementById('results').textContent = 'Could not reach vote-service.';
+      }
+    }
+
+    async function vote(option) {
+      await fetch(API + '/votes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ option })
+      });
+      document.getElementById('msg').textContent = `Voted for ${option}!`;
+      setTimeout(() => document.getElementById('msg').textContent = '', 2000);
+      loadResults();
+    }
+
+    async function resetVotes() {
+      if (!confirm('Reset all votes?')) return;
+      await fetch(API + '/votes', { method: 'DELETE' });
+      loadResults();
+    }
+
+    loadResults();
+    setInterval(loadResults, 5000);
+  </script>
+</body>
+</html>
