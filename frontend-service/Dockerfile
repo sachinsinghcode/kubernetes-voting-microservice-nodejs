@@ -1,5 +1,17 @@
+# Stage 1 - Prepare static assets
+FROM alpine:3.22 AS builder
+
+WORKDIR /app
+
+COPY index.html .
+COPY nginx.conf .
+
+# Stage 2 - Runtime image
 FROM nginx:1.25-alpine
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html /usr/share/nginx/html/index.html
-EXPOSE 80
+
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/index.html /usr/share/nginx/html/index.html
+
+EXPOSE 81
